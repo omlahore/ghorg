@@ -1,0 +1,45 @@
+name: Verify Go vendor directory
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  verify-vendor:
+    name: Verify vendored dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify go.mod and go.sum
+        run: go mod verify
+
+      - name: Regenerate vendor directory
+        run: go mod vendor
+
+      - name: Check for vendor modifications
+        run: |
+          if ! git diff --quiet -- vendor/ go.mod go.sum; then
+            echo "::error::The vendor directory does not match go.mod/go.sum."
+            echo ""
+            echo "The following files differ:"
+            git diff -- vendor/ go.mod go.sum
+            exit 1
+          fi
+
+          echo "Vendor directory is consistent with go.mod/go.sum."
